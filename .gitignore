@@ -2,6 +2,11 @@
 target/
 .mooncakes/
 
+# MoonBit coverage files
+_coverage/
+bisect.coverage
+*.coverage
+
 # IDE files
 .vscode/
 .idea/
