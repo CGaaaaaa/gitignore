@@ -79,6 +79,11 @@ fn parse_rule(pattern : String) -> Option[Rule] {
   // 处理转义字符
   working_pattern = unescape_pattern(working_pattern)
   
+  // 标准化模式：移除开头的 ./
+  if starts_with_dot_slash(working_pattern) {
+    working_pattern = substring_from(working_pattern, 2)
+  }
+  
   // 检查目录专用模式
   if ends_with_slash(working_pattern) {
     directory_only = true
@@ -297,8 +302,10 @@ fn matches_double_star_pattern(pattern : String, path : String, absolute : Bool)
     // foo/**/bar 模式
     matches_middle_double_star(pattern, path, absolute)
   } else {
-    // 其他情况，当作普通模式处理
-    let simple_pattern = replace_double_star_with_star(pattern)
+    // 其他情况，包括连续双星号 **/**/*.tmp
+    // 对于连续双星号，简化为单个双星号处理
+    let simplified_pattern = simplify_consecutive_double_stars(pattern)
+    let simple_pattern = replace_double_star_with_star(simplified_pattern)
     if absolute {
       matches_glob_pattern(simple_pattern, path)
     } else {
@@ -390,7 +397,7 @@ fn matches_middle_double_star(pattern : String, path : String, absolute : Bool) 
       return suffix.is_empty()
     } else if starts_with_pattern_slash(path, prefix) {
       let remaining = substring_from(path, prefix.length() + 1)
-      return remaining == suffix || ends_with_slash_pattern(remaining, suffix)
+      return matches_suffix_pattern(suffix, remaining)
     } else {
       return false
     }
@@ -404,7 +411,7 @@ fn matches_middle_double_star(pattern : String, path : String, absolute : Bool) 
         // 从 prefix 后面开始寻找 suffix
         for j in (i + 1)..=path_parts.length() {
           let remaining = join_array_slice(path_parts, j, path_parts.length(), "/")
-          if remaining == suffix || ends_with_slash_pattern(remaining, suffix) {
+          if matches_suffix_pattern(suffix, remaining) {
             return true
           }
         }
@@ -413,6 +420,49 @@ fn matches_middle_double_star(pattern : String, path : String, absolute : Bool) 
     
     false
   }
+}
+
+/// 匹配后缀模式（支持通配符）
+fn matches_suffix_pattern(suffix : String, remaining : String) -> Bool {
+  if suffix.is_empty() {
+    return true
+  }
+  
+  if remaining.is_empty() {
+    return false
+  }
+  
+  // 如果后缀包含通配符，使用glob匹配
+  if has_wildcards(suffix) {
+    return matches_glob_pattern(suffix, remaining)
+  }
+  
+  // 否则进行字面匹配或路径匹配
+  if remaining == suffix {
+    return true
+  }
+  
+  if ends_with_slash_pattern(remaining, suffix) {
+    return true
+  }
+  
+  // 检查是否匹配路径的任何部分
+  let remaining_parts = split_path(remaining)
+  for part in remaining_parts {
+    if part == suffix {
+      return true
+    }
+  }
+  
+  // 检查是否匹配子路径
+  for i in 0..<remaining_parts.length() {
+    let sub_path = join_array_slice(remaining_parts, i, remaining_parts.length(), "/")
+    if sub_path == suffix {
+      return true
+    }
+  }
+  
+  false
 }
 
 /// 通配符模式匹配（简化实现）
@@ -507,13 +557,28 @@ fn matches_pattern_with_brackets(pattern : String, text : String, p_idx : Int, t
     }
     
     if bracket_end >= pattern_chars.length() {
-      return false // 没有找到闭合的 ]
+      // 没有找到闭合的 ]，当作字面字符处理
+      if pattern_chars[p_idx] == text_chars[t_idx] {
+        return matches_pattern_with_brackets(pattern, text, p_idx + 1, t_idx + 1)
+      } else {
+        return false
+      }
     }
     
     // 提取字符类内容
     let mut char_class = ""
     for k in (p_idx + 1)..<bracket_end {
       char_class = char_class + pattern_chars[k].to_string()
+    }
+    
+    // 特殊处理空字符类 []，匹配字面量 ']'
+    if char_class.is_empty() {
+      // 空字符类 [] 匹配字符 ']'
+      if text_chars[t_idx] == ']' {
+        return matches_pattern_with_brackets(pattern, text, bracket_end + 1, t_idx + 1)
+      } else {
+        return false
+      }
     }
     
     // 检查字符是否匹配字符类
@@ -873,6 +938,16 @@ fn substring_range(s : String, start : Int, end : Int) -> String {
 
 fn replace_double_star_with_star(s : String) -> String {
   s.replace(old="**", new="*")
+}
+
+fn simplify_consecutive_double_stars(s : String) -> String {
+  // 将连续的双星号模式简化
+  let mut result = s
+  // **/**/*.tmp -> **/*.tmp (连续双星号简化)
+  result = result.replace(old="**/**", new="**")
+  // **/**/ -> **/
+  result = result.replace(old="**/**/", new="**/")
+  result
 }
 
 fn split_on_slash_double_star_slash(s : String) -> Array[String] {
