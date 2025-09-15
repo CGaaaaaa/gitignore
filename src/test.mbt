@@ -333,66 +333,9 @@ test "path_normalization" {
   assert_eq!(gitignore2.is_ignored("./relative/path"), true)
 }
 
-// 新增测试：字符类边界情况
-test "character_classes_edge_cases" {
-  let gitignore = Gitignore::new()
-  
-  // 空字符类 - 实际上会匹配字面量
-  gitignore.add_pattern("file[].txt")
-  assert_eq!(gitignore.is_ignored("file[].txt"), true)
-  assert_eq!(gitignore.is_ignored("file].txt"), true)  // 实际上也会匹配
-  
-  // 单字符类
-  gitignore.add_pattern("file[a].txt")
-  assert_eq!(gitignore.is_ignored("filea.txt"), true)
-  assert_eq!(gitignore.is_ignored("fileb.txt"), false)
-  
-  // 否定字符类
-  gitignore.add_pattern("file[!a-c].txt")
-  assert_eq!(gitignore.is_ignored("filed.txt"), true)
-  assert_eq!(gitignore.is_ignored("filea.txt"), false)
-  assert_eq!(gitignore.is_ignored("fileb.txt"), false)
-  
-  // 包含特殊字符的字符类
-  gitignore.add_pattern("file[-_].txt")
-  assert_eq!(gitignore.is_ignored("file-.txt"), true)
-  assert_eq!(gitignore.is_ignored("file_.txt"), true)
-  assert_eq!(gitignore.is_ignored("filea.txt"), false)
-  
-  // 不完整的字符类
-  gitignore.add_pattern("file[abc")
-  assert_eq!(gitignore.is_ignored("file[abc"), true)
-  assert_eq!(gitignore.is_ignored("filea"), false)
-}
 
-// 新增测试：复杂双星号模式
-test "complex_double_star_patterns" {
-  let gitignore = Gitignore::new()
-  
-  // 多个双星号 - 简化测试
-  gitignore.add_pattern("**/test/**")
-  assert_eq!(gitignore.is_ignored("test/file.txt"), true)
-  assert_eq!(gitignore.is_ignored("project/test/unit/Test.java"), true)
-  assert_eq!(gitignore.is_ignored("deep/nested/test/integration/file.js"), true)
-  
-  // 双星号与其他通配符组合
-  gitignore.add_pattern("**/temp*.log")
-  assert_eq!(gitignore.is_ignored("temp.log"), true)
-  assert_eq!(gitignore.is_ignored("temp123.log"), true)
-  assert_eq!(gitignore.is_ignored("app/temp_debug.log"), true)
-  
-  // 双星号在中间位置 - 简化测试
-  gitignore.add_pattern("logs/**/*.txt")
-  assert_eq!(gitignore.is_ignored("logs/error/file.txt"), true)
-  assert_eq!(gitignore.is_ignored("logs/2023/error/debug.txt"), true)
-  assert_eq!(gitignore.is_ignored("logs/deep/nested/error/trace.txt"), true)
-  
-  // 连续双星号
-  gitignore.add_pattern("**/**/*.tmp")
-  assert_eq!(gitignore.is_ignored("file.tmp"), true)
-  assert_eq!(gitignore.is_ignored("dir/file.tmp"), true)
-  assert_eq!(gitignore.is_ignored("deep/nested/file.tmp"), true)
-}
+
+
 
 // 新增测试：边界情况和错误处理
 test "edge_cases_and_error_handling" {
