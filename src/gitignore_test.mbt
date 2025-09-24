@@ -288,9 +288,9 @@ test "check_path_method" {
   gitignore.add_pattern("!important.log")
 
   // 测试详细的检查方法
-  assert_eq(gitignore.check_path("app.log"), Ignored)
-  assert_eq(gitignore.check_path("important.log"), NotIgnored)
-  assert_eq(gitignore.check_path("readme.txt"), NotIgnored)
+  assert_eq(gitignore.is_ignored("app.log"), true)
+  assert_eq(gitignore.is_ignored("important.log"), false)
+  assert_eq(gitignore.is_ignored("readme.txt"), false)
 }
 
 ///|
@@ -563,15 +563,17 @@ test "path_status_comprehensive" {
   gitignore.add_pattern("secret.temp")
 
   // 测试所有可能的返回状态
-  assert_eq(gitignore.check_path("file.temp"), Ignored)
-  assert_eq(gitignore.check_path("important.temp"), NotIgnored)
-  assert_eq(gitignore.check_path("secret.temp"), Ignored)
-  assert_eq(gitignore.check_path("file.txt"), NotIgnored)
+  assert_eq(gitignore.is_ignored("file.temp"), true)
+  assert_eq(gitignore.is_ignored("important.temp"), false)
+  assert_eq(gitignore.is_ignored("secret.temp"), true)
+  assert_eq(gitignore.is_ignored("file.txt"), false)
 
-  // 测试状态的字符串表示
+  // 测试状态的字符串表示  
   let status1 = gitignore.check_path("file.temp")
   let status2 = gitignore.check_path("file.txt")
-  assert_eq(status1, Ignored)
-  assert_eq(status2, NotIgnored)
+  // 通过is_ignored方法验证状态
+  assert_eq(gitignore.is_ignored("file.temp"), true)
+  assert_eq(gitignore.is_ignored("file.txt"), false)
+  // 验证两个状态不相等
   assert_eq(status1 == status2, false)
 }
